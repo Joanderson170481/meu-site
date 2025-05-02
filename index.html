@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Apostas com Controle de Banca</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .bankroll-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .bankroll-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .bankroll-card h3 {
+            margin-top: 0;
+            color: var(--dark);
+        }
+        
+        .bankroll-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .positive { color: var(--secondary); }
+        .negative { color: var(--danger); }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+        
+        .profit { color: var(--secondary); font-weight: bold; }
+        .loss { color: var(--danger); font-weight: bold; }
+        
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .chart-container {
+            height: 400px;
+            margin-top: 20px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-success { background-color: var(--secondary); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-warning { background-color: var(--warning); color: white; }
+        
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Gestão de Apostas com Controle de Banca</h1>
+        
+        <!-- Controle de Banca -->
+        <div class="container">
+            <h2>🏦 Controle de Banca</h2>
+            <div class="bankroll-container">
+                <div class="bankroll-card">
+                    <h3>Banca Inicial</h3>
+                    <div class="bankroll-value" id="initial-bankroll">R$ 1.000,00</div>
+                    <input type="number" id="set-bankroll" placeholder="Novo valor" step="100" min="0">
+                    <button class="btn-primary" id="update-bankroll" style="margin-top: 10px;">Atualizar Banca</button>
+                </div>
+                
+                <div class="bankroll-card">
+                    <h3>Banca Atual</h3>
+                    <div class="bankroll-value" id="current-bankroll">R$ 1.000,00</div>
+                    <div id="bankroll-change">+0.00%</div>
+                </div>
+                
+                <div class="bankroll-card">
+                    <h3>Últimas Apostas</h3>
+                    <div class="bankroll-value" id="last-bets-profit">R$ 0,00</div>
+                    <div id="last-bets-count">0 apostas</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Formulário de Apostas -->
+        <div class="container">
+            <h2>➕ Nova Aposta</h2>
+            <form id="bet-form">
+                <input type="hidden" id="bet-id">
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="bet-date">Data</label>
+                        <input type="date" id="bet-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-sport">Esporte</label>
+                        <select id="bet-sport" required>
+                            <option value="">Selecione...</option>
+                            <option value="Futebol">Futebol</option>
+                            <option value="Tênis">Tênis</option>
+                            <option value="Basquete">Basquete</option>
+                            <option value="Vôlei">Vôlei</option>
+                            <option value="eSports">eSports</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-market">Mercado</label>
+                        <select id="bet-market" required>
+                            <option value="">Selecione o esporte primeiro</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="bet-event">Evento</label>
+                        <input type="text" id="bet-event" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-odds">Odd</label>
+                        <input type="number" id="bet-odds" step="0.01" min="1.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-stake">Valor (R$)</label>
+                        <input type="number" id="bet-stake" step="0.01" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-result">Resultado</label>
+                        <select id="bet-result" required>
+                            <option value="Win">Ganhou</option>
+                            <option value="Loss">Perdeu</option>
+                            <option value="Pending">Pendente</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary">Salvar Aposta</button>
+                <button type="button" id="clear-form" class="btn-danger">Limpar</button>
+            </form>
+        </div>
+        
+        <!-- Filtros e Tabela -->
+        <div class="container">
+            <h2>🔍 Filtros e Histórico</h2>
+            <div class="filters">
+                <div class="form-group">
+                    <label for="filter-sport">Esporte</label>
+                    <select id="filter-sport">
+                        <option value="">Todos</option>
+                        <option value="Futebol">Futebol</option>
+                        <option value="Tênis">Tênis</option>
+                        <option value="Basquete">Basquete</option>
+                        <option value="Vôlei">Vôlei</option>
+                        <option value="eSports">eSports</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-market">Mercado</label>
+                    <select id="filter-market">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-result">Resultado</label>
+                    <select id="filter-result">
+                        <option value="">Todos</option>
+                        <option value="Win">Ganhou</option>
+                        <option value="Loss">Perdeu</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-start-date">De</label>
+                    <input type="date" id="filter-start-date">
+                </div>
+                <div class="form-group">
+                    <label for="filter-end-date">Até</label>
+                    <input type="date" id="filter-end-date">
+                </div>
+                <button id="apply-filters" class="btn-primary" style="align-self: flex-end;">Aplicar</button>
+            </div>
+            
+            <table id="bets-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Esporte</th>
+                        <th>Evento</th>
+                        <th>Mercado</th>
+                        <th>Odd</th>
+                        <th>Valor</th>
+                        <th>Resultado</th>
+                        <th>Lucro</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Gráficos -->
+        <div class="container">
+            <h2>📊 Performance</h2>
+            <div class="chart-container">
+                <canvas id="performance-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Banco de Dados
+    let betsDB = JSON.parse(localStorage.getItem('betsDB')) || [];
+    let bankrollData = JSON.parse(localStorage.getItem('bankrollData')) || { initial: 1000, current: 1000 };
+    let performanceChart = null;
+
+    // Dicionário de Mercados por Esporte
+    const MARKET_TYPES = {
+        'Futebol': ['Vitória', 'Empate', 'Handicap Asiático', 'Dupla Chance', 'Over/Under', 'Ambas Marcam', 'Escanteios'],
+        'Tênis': ['Vencedor', 'Sets', 'Games', 'Tie-break', 'Handicap', 'Total Games'],
+        'Basquete': ['Pontos', 'Handicap', 'Total Pontos', 'Quartos', 'Vencedor Quarto'],
+        'Vôlei': ['Vencedor', 'Sets', 'Total Pontos', 'Handicap Sets'],
+        'eSports': ['Mapas', 'Total Round', 'Handicap', 'Eliminações']
+    };
+
+    // Formatar moeda
+    function formatCurrency(value) {
+        return 'R$ ' + parseFloat(value).toFixed(2).replace('.', ',');
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+        // Configurar data atual como padrão
+        document.getElementById('bet-date').valueAsDate = new Date();
+        
+        // Carregar dados e interface
+        updateMarketFilters();
+        updateBankrollDisplay();
+        renderTable();
+        updateChart();
+        
+        // Event Listeners
+        setupEventListeners();
+    });
+
+    // Funções do Banco de Dados
+    function saveBet(bet) {
+        return new Promise((resolve) => {
+            if (bet.id) {
+                // Editar aposta existente
+                const index = betsDB.findIndex(b => b.id === bet.id);
+                if (index !== -1) {
+                    betsDB[index] = bet;
+                }
+            } else {
+                // Nova aposta
+                bet.id = Date.now().toString();
+                betsDB.push(bet);
+                
+                // Atualizar banca se a aposta não for pendente
+                if (bet.result !== 'Pending') {
+                    updateBankroll(bet);
+                }
+            }
+            
+            localStorage.setItem('betsDB', JSON.stringify(betsDB));
+            resolve();
+        });
+    }
+
+    function updateBankroll(bet) {
+        const profit = calculateProfit(bet.stake, bet.odds, bet.result);
+        bankrollData.current += profit;
+        localStorage.setItem('bankrollData', JSON.stringify(bankrollData));
+        updateBankrollDisplay();
+    }
+
+    function updateBankrollDisplay() {
+        document.getElementById('initial-bankroll').textContent = formatCurrency(bankrollData.initial);
+        document.getElementById('current-bankroll').textContent = formatCurrency(bankrollData.current);
+        
+        const change = ((bankrollData.current - bankrollData.initial) / bankrollData.initial * 100).toFixed(2);
+        const changeElement = document.getElementById('bankroll-change');
+        changeElement.textContent = (change >= 0 ? '+' : '') + change + '%';
+        changeElement.className = change >= 0 ? 'positive' : 'negative';
+        
+        // Atualizar estatísticas das últimas apostas
+        updateLastBetsStats();
+    }
+
+    function updateLastBetsStats() {
+        const lastBets = betsDB.filter(bet => bet.result !== 'Pending').slice(-5);
+        const totalProfit = lastBets.reduce((sum, bet) => {
+            return sum + calculateProfit(bet.stake, bet.odds, bet.result);
+        }, 0);
+        
+        document.getElementById('last-bets-profit').textContent = formatCurrency(totalProfit);
+        document.getElementById('last-bets-profit').className = totalProfit >= 0 ? 'positive' : 'negative';
+        document.getElementById('last-bets-count').textContent = lastBets.length + ' apostas';
+    }
+
+    function deleteBet(id) {
+        const bet = betsDB.find(b => b.id === id);
+        betsDB = betsDB.filter(bet => bet.id !== id);
+        
+        // Recalcular banca se a aposta não for pendente
+        if (bet && bet.result !== 'Pending') {
+            const profit = calculateProfit(bet.stake, bet.odds, bet.result);
+            bankrollData.current -= profit;
+            localStorage.setItem('bankrollData', JSON.stringify(bankrollData));
+        }
+        
+        localStorage.setItem('betsDB', JSON.stringify(betsDB));
+        updateBankrollDisplay();
+    }
+
+    function getBets(filter = {}) {
+        return betsDB.filter(bet => {
+            if (filter.sport && bet.sport !== filter.sport) return false;
+            if (filter.market && bet.market !== filter.market) return false;
+            if (filter.result && bet.result !== filter.result) return false;
+            if (filter.startDate && new Date(bet.date) < new Date(filter.startDate)) return false;
+            if (filter.endDate && new Date(bet.date) > new Date(filter.endDate)) return false;
+            return true;
+        });
+    }
+
+    // Funções da Interface
+    function renderTable(filter = {}) {
+        const bets = getBets(filter);
+        const tbody = document.querySelector('#bets-table tbody');
+        tbody.innerHTML = '';
+        
+        if (bets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhuma aposta encontrada</td></tr>';
+            return;
+        }
+        
+        bets.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(bet => {
+            const profit = calculateProfit(bet.stake, bet.odds, bet.result);
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${formatDate(bet.date)}</td>
+                <td>${bet.sport}</td>
+                <td>${bet.event}</td>
+                <td>${bet.market}</td>
+                <td>${bet.odds.toFixed(2)}</td>
+                <td>${formatCurrency(bet.stake)}</td>
+                <td>${formatResult(bet.result)}</td>
+                <td class="${profit >= 0 ? 'profit' : 'loss'}">${formatCurrency(profit)}</td>
+                <td class="action-buttons">
+                    <button class="edit-btn btn-warning" data-id="${bet.id}">Editar</button>
+                    <button class="delete-btn btn-danger" data-id="${bet.id}">Excluir</button>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+        
+        // Adicionar eventos aos botões
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => loadBetForEditing(btn.dataset.id));
+        });
+        
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => confirmDeleteBet(btn.dataset.id));
+        });
+    }
+
+    function updateMarketFilters() {
+        // Atualizar filtro de mercado no formulário principal
+        const sportSelect = document.getElementById('bet-sport');
+        const marketSelect = document.getElementById('bet-market');
+        
+        sportSelect.addEventListener('change', function() {
+            const selectedSport = this.value;
+            marketSelect.innerHTML = '<option value="">Selecione...</option>';
+            
+            if (selectedSport && MARKET_TYPES[selectedSport]) {
+                MARKET_TYPES[selectedSport].forEach(market => {
+                    const option = document.createElement('option');
+                    option.value = market;
+                    option.textContent = market;
+                    marketSelect.appendChild(option);
+                });
+            }
+        });
+        
+        // Atualizar filtro de mercado na seção de filtros
+        const filterSport = document.getElementById('filter-sport');
+        const filterMarket = document.getElementById('filter-market');
+        
+        filterSport.addEventListener('change', function() {
+            const selectedSport = this.value;
+            filterMarket.innerHTML = '<option value="">Todos</option>';
+            
+            if (selectedSport && MARKET_TYPES[selectedSport]) {
+                MARKET_TYPES[selectedSport].forEach(market => {
+                    const option = document.createElement('option');
+                    option.value = market;
+                    option.textContent = market;
+                    filterMarket.appendChild(option);
+                });
+            }
+        });
+    }
+
+    function updateChart() {
+        const ctx = document.getElementById('performance-chart').getContext('2d');
+        const bets = getBets().filter(bet => bet.result !== 'Pending')
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        const labels = [];
+        const data = [];
+        let cumulativeProfit = bankrollData.initial;
+        
+        // Ponto inicial
+        labels.push('Início');
+        data.push(cumulativeProfit);
+        
+        bets.forEach((bet, index) => {
+            const profit = calculateProfit(bet.stake, bet.odds, bet.result);
+            cumulativeProfit += profit;
+            
+            labels.push(`${index + 1} - ${formatShortDate(bet.date)}`);
+            data.push(cumulativeProfit);
+        });
+        
+        if (performanceChart) {
+            performanceChart.data.labels = labels;
+            performanceChart.data.datasets[0].data = data;
+            performanceChart.update();
+        } else {
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Evolução da Banca (R$)',
+                        data: data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return formatCurrency(context.raw);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Funções Auxiliares
+    function calculateProfit(stake, odds, result) {
+        if (result === 'Win') return (stake * odds) - stake;
+        if (result === 'Loss') return -stake;
+        return 0;
+    }
+
+    function formatDate(dateString) {
+        const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+        return new Date(dateString).toLocaleDateString('pt-BR', options);
+    }
+
+    function formatShortDate(dateString) {
+        const options = { month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString('pt-BR', options);
+    }
+
+    function formatResult(result) {
+        return {
+            'Win': '✅ Ganhou',
+            'Loss': '❌ Perdeu',
+            'Pending': '⏳ Pendente'
+        }[result] || result;
+    }
+
+    // Funções de Controle
+    function setupEventListeners() {
+        // Formulário
+        document.getElementById('bet-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const bet = {
+                id: document.getElementById('bet-id').value || null,
+                date: document.getElementById('bet-date').value,
+                sport: document.getElementById('bet-sport').value,
+                event: document.getElementById('bet-event').value,
+                market: document.getElementById('bet-market').value,
+                odds: parseFloat(document.getElementById('bet-odds').value),
+                stake: parseFloat(document.getElementById('bet-stake').value),
+                result: document.getElementById('bet-result').value
+            };
+            
+            await saveBet(bet);
+            resetForm();
+            updateMarketFilters();
+            renderTable(getCurrentFilter());
+            updateChart();
+            updateBankrollDisplay();
+        });
+        
+        // Limpar formulário
+        document.getElementById('clear-form').addEventListener('click', resetForm);
+        
+        // Filtros
+        document.getElementById('apply-filters').addEventListener('click', () => {
+            renderTable(getCurrentFilter());
+            updateChart();
+        });
+        
+        // Atualizar banca
+        document.getElementById('update-bankroll').addEventListener('click', () => {
+            const newBankroll = parseFloat(document.getElementById('set-bankroll').value);
+            if (!isNaN(newBankroll) && newBankroll >= 0) {
+                bankrollData.initial = newBankroll;
+                
+                // Recalcular banca atual baseada nas apostas
+                bankrollData.current = newBankroll;
+                betsDB.filter(bet => bet.result !== 'Pending').forEach(bet => {
+                    bankrollData.current += calculateProfit(bet.stake, bet.odds, bet.result);
+                });
+                
+                localStorage.setItem('bankrollData', JSON.stringify(bankrollData));
+                updateBankrollDisplay();
+                updateChart();
+                document.getElementById('set-bankroll').value = '';
+            }
+        });
+    }
+
+    function getCurrentFilter() {
+        return {
+            sport: document.getElementById('filter-sport').value || undefined,
+            market: document.getElementById('filter-market').value || undefined,
+            result: document.getElementById('filter-result').value || undefined,
+            startDate: document.getElementById('filter-start-date').value || undefined,
+            endDate: document.getElementById('filter-end-date').value || undefined
+        };
+    }
+
+    function resetForm() {
+        document.getElementById('bet-form').reset();
+        document.getElementById('bet-id').value = '';
+        document.getElementById('bet-date').valueAsDate = new Date();
+        document.querySelector('#bet-form button[type="submit"]').textContent = 'Salvar Aposta';
+    }
+
+    function loadBetForEditing(id) {
+        const bet = betsDB.find(b => b.id === id);
+        if (!bet) return;
+        
+        document.getElementById('bet-id').value = bet.id;
+        document.getElementById('bet-date').value = bet.date;
+        document.getElementById('bet-sport').value = bet.sport;
+        document.getElementById('bet-event').value = bet.event;
+        
+        // Configurar mercado corretamente
+        const marketSelect = document.getElementById('bet-market');
+        marketSelect.innerHTML = '';
+        if (bet.sport && MARKET_TYPES[bet.sport]) {
+            MARKET_TYPES[bet.sport].forEach(market => {
+                const option = document.createElement('option');
+                option.value = market;
+                option.textContent = market;
+                marketSelect.appendChild(option);
+            });
+        }
+        marketSelect.value = bet.market;
+        
+        document.getElementById('bet-odds').value = bet.odds;
+        document.getElementById('bet-stake').value = bet.stake;
+        document.getElementById('bet-result').value = bet.result;
+        
+        document.querySelector('#bet-form button[type="submit"]').textContent = 'Atualizar Aposta';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function confirmDeleteBet(id) {
+        if (confirm('Tem certeza que deseja excluir esta aposta?')) {
+            deleteBet(id);
+            renderTable(getCurrentFilter());
+            updateChart();
+            updateBankrollDisplay();
+        }
+    }
+    </script>
+</body>
+</html><link rel="stylesheet" href="index.css">
+<script src="index.tsx" type="module"></script>

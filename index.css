@@ -1,0 +1,39 @@
+// Adicione no início do CSS:
+/*
+.dark-mode {
+    --primary: #2980b9;
+    --secondary: #27ae60;
+    --danger: #c0392b;
+    --warning: #d35400;
+    --dark: #ecf0f1;
+    --light: #2c3e50;
+    
+    background-color: #34495e;
+    color: #ecf0f1;
+}
+
+.dark-mode .container, .dark-mode .bankroll-card {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+}
+
+.dark-mode th {
+    background-color: #1a252f;
+}
+*/
+
+// Adicione no HTML (no cabeçalho):
+/*
+<button id="dark-mode-toggle" class="btn-warning">🌙 Dark Mode</button>
+*/
+
+// Adicione no JavaScript:
+document.getElementById('dark-mode-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+});
+
+// No DOMContentLoaded:
+if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark-mode');
+}
